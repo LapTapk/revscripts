@@ -7,6 +7,8 @@
 # Useful when performing control flow analysis of 
 # a specific program functionality using Frida
 # 
+# See frida/trace_by_rvas.js
+#
 # author: LapTapk
 
 #@category Export
