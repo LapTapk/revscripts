@@ -154,10 +154,15 @@ rpc.exports = {
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Frida Stalker basic-block trace until entering a function address (host-side file I/O)."
+        description="Frida Stalker indirect calls tracer"
     )
     
     p.add_argument("target", help="Path to target binary or PID")
+    p.add_argument(
+           "--env",
+           default=None,
+           help="Env file for target",
+    )
     p.add_argument(
         "--out",
         default="trace",
@@ -184,11 +189,6 @@ def parse_args() -> argparse.Namespace:
         dest="passthrough",
         nargs=argparse.REMAINDER,
         help="Arguments passed to target. Example: script.py ./bin 0x401080 -- arg1 arg2",
-    )
-    p.add_argument(
-           "--env",
-           default=None,
-           help="Env file for target",
     )
 
     return p.parse_args()
