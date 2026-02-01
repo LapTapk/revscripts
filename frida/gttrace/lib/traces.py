@@ -12,6 +12,9 @@ class Traces:
         self.dbg = dbg
 
     def _is_whitelisted(self, mod_addr):
+        if not self.wl:
+            return True
+
         if mod_addr.mod not in self.wl:
             return False
 

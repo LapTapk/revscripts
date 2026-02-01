@@ -52,7 +52,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--pid",
         action="store_true",
-        help="PID to attach to if --no-spawn is used",
+        help="Attach to target pid instead of spawning it",
     )
     p.add_argument(
         "--wl",
@@ -84,7 +84,7 @@ def main():
         with open(args.env, 'r') as f:
             envs_file = f.read()
 
-        envs = dict(map(lambda x: x.split('='), filter(str.strip, filter(None, envs_file.split('\n')))))
+        envs = dict(map(lambda x: x.split('=', 1), filter(str.strip, filter(None, envs_file.split('\n')))))
     else:
         envs = None 
         
