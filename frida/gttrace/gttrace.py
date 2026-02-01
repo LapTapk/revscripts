@@ -1,4 +1,10 @@
 #!/bin/env python3
+"""CLI entrypoint for the gttrace Frida Stalker tracer.
+
+This script orchestrates argument parsing, device selection, and tracer
+startup/shutdown. It wires CLI flags into the TracerConf used by the
+lower-level tracing pipeline.
+"""
 
 import frida
 import argparse
@@ -10,6 +16,15 @@ from lib.tracer import Tracer, TracerConf
 from lib.common import ModRVA
 
 def get_device(device, remote):
+    """Resolve a Frida device handle from CLI arguments.
+
+    Args:
+        device: Device selector ("local", "usb", or "remote").
+        remote: Remote host string used when device == "remote".
+
+    Returns:
+        A Frida device object ready for attach/spawn operations.
+    """
     if device == "local":
         return frida.get_local_device()
     if device == "usb":
@@ -19,10 +34,19 @@ def get_device(device, remote):
     raise ValueError("Invalid device type")
 
 def parse_entry(entry):
+    """Parse <MOD>!0x<RVA> entrypoint strings into a ModRVA.
+
+    The entrypoint is used by the Frida agent to start/stop coverage collection.
+    """
     [mod, rva] = entry.split('!')
     return ModRVA(mod, int(rva, 16))
 
 def parse_args() -> argparse.Namespace:
+    """Define and parse CLI arguments for the tracer.
+
+    Returns:
+        Parsed CLI arguments matching TracerConf inputs.
+    """
     p = argparse.ArgumentParser(
         description="Frida Stalker indirect calls tracer"
     )
@@ -73,6 +97,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main():
+    """Configure tracing, run until interrupted, then detach cleanly."""
     args = parse_args()
     if args.wl:
         with open(args.wl, 'r') as f:
