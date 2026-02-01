@@ -1,3 +1,5 @@
+"""ELF/DWARF symbol resolution for gttrace output."""
+
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import SHN_INDICES
 from pathlib import Path
@@ -6,18 +8,20 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class FuncSym:
+    """Resolved function symbol with a virtual address range."""
     start: int
     end: int
     name: str
 
 @dataclass(frozen=True)
 class SrcLoc:
+    """Source location resolved from DWARF line tables."""
     file: str
     line: int
     col: int
 
 def _image_base_vaddr(elf: ELFFile) -> int:
-    """Lowest PT_LOAD p_vaddr (for ET_EXEC and sometimes ET_DYN)."""
+    """Return the lowest PT_LOAD p_vaddr, used as the image base."""
     bases = []
     for seg in elf.iter_segments():
         if seg.header.p_type == "PT_LOAD":
@@ -26,16 +30,15 @@ def _image_base_vaddr(elf: ELFFile) -> int:
 
 
 class ElfResolver:
-    """
-    Resolve function name (and optionally source location) from an RVA.
+    """Resolve function names and optional source locations from RVAs.
 
     Addressing model:
-      - Input is RVA relative to runtime load base of the object.
-      - We convert RVA -> ELF virtual address used by symbols/line tables:
-          vaddr = rva + image_base
-        where image_base = min PT_LOAD p_vaddr
-      - For ET_DYN shared libs, image_base is typically 0, so vaddr ~= rva.
-        For ET_EXEC non-PIE, image_base is often 0x400000, so vaddr = rva + 0x400000.
+        * Input is an RVA relative to the runtime load base.
+        * We map RVA -> ELF virtual address used by symbols/line tables:
+              vaddr = rva + image_base
+          where image_base = min PT_LOAD p_vaddr.
+        * For ET_DYN shared libs, image_base is typically 0, so vaddr ~= rva.
+          For ET_EXEC non-PIE binaries, image_base is often 0x400000.
     """
 
     def __init__(self, path: str, build_dwarf_index: bool = True):
@@ -54,10 +57,12 @@ class ElfResolver:
                 self._build_line_index(self._elf)
 
     def rva_to_vaddr(self, rva: int) -> int:
+        """Translate an RVA to the ELF virtual address space."""
         return int(rva) + int(self._img_base)
 
     @staticmethod
     def _iter_symbol_sections(elf: ELFFile):
+        """Yield relevant symbol sections from the ELF."""
         symtab = elf.get_section_by_name(".symtab")
         if symtab is not None:
             yield symtab
@@ -66,6 +71,7 @@ class ElfResolver:
             yield dynsym
 
     def _build_func_index(self, elf: ELFFile):
+        """Build a sorted list of function symbol ranges."""
         items = []
 
         for sec in self._iter_symbol_sections(elf):
@@ -111,6 +117,7 @@ class ElfResolver:
         return funcs
 
     def _build_line_index(self, elf: ELFFile) -> None:
+        """Index DWARF line table entries for RVA-to-source lookup."""
         dwarf = elf.get_dwarf_info()
         addrs = []
         locs = []
@@ -157,6 +164,7 @@ class ElfResolver:
             self._line_locs = [l for _, l in paired]
 
     def resolve_func_by_rva(self, rva: int):
+        """Resolve a function symbol by RVA."""
         if not self._funcs:
             return None
         vaddr = self.rva_to_vaddr(rva)
@@ -170,6 +178,7 @@ class ElfResolver:
         return None
 
     def resolve_line_by_rva(self, rva: int):
+        """Resolve a source line by RVA."""
         if not self._line_addrs:
             return None
         vaddr = self.rva_to_vaddr(rva)
@@ -179,25 +188,33 @@ class ElfResolver:
         return self._line_locs[i]
 
     def resolve(self, rva: int):
+        """Resolve both function and source line metadata by RVA."""
         return self.resolve_func_by_rva(rva), self.resolve_line_by_rva(rva)
 
 
 class DebugSymbol:
+    """Track loaded modules and resolve RVAs to symbols/lines.
+
+    Modules are registered by name and filesystem path, enabling lookups
+    from (module, rva) tuples during trace formatting.
+    """
     def __init__(self):
         self._mods = {}
 
     def add_mod(self, name: str, elf_path: str, *, build_dwarf_index: bool = True):
+        """Register an ELF module for symbol resolution."""
         if not Path(elf_path).exists():
             return
         self._mods[name] = ElfResolver(elf_path, build_dwarf_index=build_dwarf_index)
 
     def rem_mod(self, name: str):
+        """Remove a module from the resolver cache."""
         self._mods.pop(name, None)
 
     def resolve(self, module_name: str, rva: int):
+        """Resolve symbols for a module/RVA pair."""
         r = self._mods.get(module_name)
         if r is None:
             return None
         func, loc = r.resolve(rva)
         return module_name, rva, func, loc
-

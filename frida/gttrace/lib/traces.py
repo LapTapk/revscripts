@@ -1,9 +1,15 @@
+"""Trace formatting and file management for control-flow edges."""
+
 from dataclasses import dataclass
 from lib.messages import CfItem
 from lib.mod_lookup import ModLookup
 from lib.dbgsym import DebugSymbol
 
 class Traces:
+    """Manage trace output files and format call edges.
+
+    Each thread id (TID) receives its own trace file, created on demand.
+    """
     def __init__(self, wl: dict[str, list[int]], mods: ModLookup, dbg: DebugSymbol, out: str):
         self.opened = {}
         self.wl = wl
@@ -12,6 +18,7 @@ class Traces:
         self.dbg = dbg
 
     def _is_whitelisted(self, mod_addr):
+        """Check whether a module RVA is in the whitelist."""
         if not self.wl:
             return True
 
@@ -25,6 +32,7 @@ class Traces:
         return True
 
     def _prettify_addr(self, mod_addr):
+        """Render a module address as a symbol name or RVA string."""
         res = self.dbg.resolve(mod_addr.mod, mod_addr.rva)
         if res:
             (_, _, func, _) = res
@@ -35,6 +43,7 @@ class Traces:
 
 
     def write(self, cfs: list[CfItem]):
+        """Write resolved call edges to per-thread trace files."""
         for cf in cfs:
             frm_mod_addr = self.mods.lookup(cf.frm)
             target_mod_addr = self.mods.lookup(cf.target)
@@ -54,5 +63,6 @@ class Traces:
 
 
     def close(self):
+        """Close any opened trace files."""
         for f in self.opened.values():
             f.close()
