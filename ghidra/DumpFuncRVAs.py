@@ -1,26 +1,24 @@
-"""
-DumpFuncRVAs.py
-================
-
-Export all function RVAs from the current Ghidra program, while filtering out
-noisy/irrelevant symbols (e.g., libc and C++ stdlib helpers).
-
-The script writes a JSON file that maps module name -> list[int] (RVA values).
-It will *merge* into an existing JSON file if one is chosen, preserving other
-module keys already present. This makes it safe to aggregate multiple binaries
-in a single output file.
-
-Typical usage:
-  - Ghidra: Tools -> Export -> All Function RVAs
-  - Pick a JSON file to write or update.
-  - Use output with frida/gttrace for targeted control-flow analysis.
-
-Notes:
-  - Jython 2.7 environment: keep syntax compatible (avoid f-strings, etc.)
-  - Blacklist configuration is centralized below.
-
-author: LapTapk
-"""
+# DumpFuncRVAs.py
+# ================
+#
+# Export all function RVAs from the current Ghidra program, while filtering out
+# noisy/irrelevant symbols (e.g., libc and C++ stdlib helpers).
+#
+# The script writes a JSON file that maps module name -> list[int] (RVA values).
+# It will *merge* into an existing JSON file if one is chosen, preserving other
+# module keys already present. This makes it safe to aggregate multiple binaries
+# in a single output file.
+#
+# Typical usage:
+#  - Ghidra: Tools -> Export -> All Function RVAs
+#   - Pick a JSON file to write or update.
+#   - Use output with frida/gttrace for targeted control-flow analysis.
+#
+# Notes:
+#   - Jython 2.7 environment: keep syntax compatible (avoid f-strings, etc.)
+#   - Blacklist configuration is centralized below.
+#
+# author: LapTapk
 
 #@category Export
 #@menupath Tools.Export.All Function RVAs
