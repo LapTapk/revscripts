@@ -11,6 +11,9 @@ with debug info, and writes per-thread trace logs that are easy to post-process.
 - Entry-point gating to start/stop coverage within a specific function.
 - Per-thread trace files with resolved symbols when available.
 
+## Target restrictions
+- Debug symbols are only avalible for ELF files for now
+
 ## Requirements
 
 - Python 3
