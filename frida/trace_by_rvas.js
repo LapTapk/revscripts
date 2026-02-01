@@ -1,6 +1,6 @@
 /*
  * There is a better script for this purpose. 
- * See frida/trace_stalker.py
+ * See frida/gttrace/
  *
  * This script contains functions which can help 
  * with tracing functions of a binary by their RVAs.
