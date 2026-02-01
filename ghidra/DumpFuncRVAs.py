@@ -5,15 +5,16 @@
 #
 # Useful when performing control flow analysis of 
 # a specific program functionality using Frida.
-# 
-# See frida/trace_by_rvas.js
 #
+# See frida/gttrace/
+# 
 # author: LapTapk
 
 #@category Export
 #@menupath Tools.Export.All Function RVAs
 
 import json
+from pathlib import Path
 
 fm = currentProgram.getFunctionManager()
 base = currentProgram.getImageBase()
@@ -33,6 +34,7 @@ BLACKLIST_NAMES = set([
 BLACKLIST_NAME_PREFIXES = (
     "__libc_",
     "__GI__",          # glibc internal
+    "std::"
 )
 
 BLACKLIST_NAMESPACES_EXACT = set([
@@ -41,7 +43,7 @@ BLACKLIST_NAMESPACES_EXACT = set([
 
 BLACKLIST_NAME_SUBSTRINGS = (
     "boost::",         # demangled
-    "boost/",          # sometimes appears in paths/symbols
+    "boost/",          # sometimes appears in paths/symbols,
 )
 
 BLACKLIST_MANGLED_PREFIXES = (
@@ -63,7 +65,7 @@ def is_blacklisted(func):
     except:
         pass
 
-    name = func.getName() or ""
+    name = func.getSymbol().getName(True) or ""
 
     if name in BLACKLIST_NAMES:
         return True
@@ -71,6 +73,7 @@ def is_blacklisted(func):
     for p in BLACKLIST_NAME_PREFIXES:
         if name.startswith(p):
             return True
+
 
     for p in BLACKLIST_MANGLED_PREFIXES:
         if name.startswith(p):
@@ -110,11 +113,18 @@ while it.hasNext():
 rvas = sorted(set(rvas))
 
 # ---------------- WRITE JSON ----------------
-
 out = askFile("Save all function RVAs (JSON numbers)", "Save")
-f = open(out.getAbsolutePath(), "w")
-f.write(json.dumps(rvas))
-f.close()
+absPath = out.getAbsolutePath()
+if Path(absPath).exists():
+    with open(absPath, "r") as f:
+        prev_rvas = json.load(f)
+else:
+    prev_rvas = {}
+
+mod = currentProgram.getName()
+prev_rvas[mod] = rvas
+with open(out.getAbsolutePath(), "w") as f:
+    f.write(json.dumps(prev_rvas))
 
 print("Exported functions:", len(rvas))
 print("Saved to:", out.getAbsolutePath())
