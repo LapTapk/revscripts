@@ -4,6 +4,10 @@
 edges from a running process. It resolves module RVAs, optionally symbolicates
 with debug info, and writes per-thread trace logs that are easy to post-process.
 
+## Motivation
+
+`gttrace` is designed to trace all control-flow transfers—both explicit and indirect—while recording their call sites. This enables straightforward reconstruction and analysis of a program’s control flow for a specific execution.
+
 ## Features
 
 - Trace indirect `call` and `j*` edges per thread using Frida Stalker.
