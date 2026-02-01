@@ -15,7 +15,6 @@
 #   - Use output with frida/gttrace for targeted control-flow analysis.
 #
 # Notes:
-#   - Jython 2.7 environment: keep syntax compatible (avoid f-strings, etc.)
 #   - Blacklist configuration is centralized below.
 #
 # author: LapTapk
