@@ -1,14 +1,26 @@
-# Export all RVAs of a program.
-# It has blacklists for noisy functions.
-#
-# Output is json file with array which contains RVAs as numbers.
-#
-# Useful when performing control flow analysis of 
-# a specific program functionality using Frida.
-#
-# See frida/gttrace/
-# 
-# author: LapTapk
+"""
+DumpFuncRVAs.py
+================
+
+Export all function RVAs from the current Ghidra program, while filtering out
+noisy/irrelevant symbols (e.g., libc and C++ stdlib helpers).
+
+The script writes a JSON file that maps module name -> list[int] (RVA values).
+It will *merge* into an existing JSON file if one is chosen, preserving other
+module keys already present. This makes it safe to aggregate multiple binaries
+in a single output file.
+
+Typical usage:
+  - Ghidra: Tools -> Export -> All Function RVAs
+  - Pick a JSON file to write or update.
+  - Use output with frida/gttrace for targeted control-flow analysis.
+
+Notes:
+  - Jython 2.7 environment: keep syntax compatible (avoid f-strings, etc.)
+  - Blacklist configuration is centralized below.
+
+author: LapTapk
+"""
 
 #@category Export
 #@menupath Tools.Export.All Function RVAs
@@ -55,6 +67,7 @@ BLACKLIST_NAMESPACE_SUBSTRINGS = (
 )
 
 def is_blacklisted(func):
+    """Return True when a function should be ignored in the dump."""
     if func is None:
         return True
 
@@ -62,8 +75,10 @@ def is_blacklisted(func):
     try:
         if func.isThunk():
             return True
-    except:
-        pass
+    except Exception:
+        # Some function implementations may not expose isThunk safely.
+        # If in doubt, keep the function (do not blacklist).
+        return False
 
     name = func.getSymbol().getName(True) or ""
 
@@ -99,32 +114,43 @@ def is_blacklisted(func):
 
 # ---------------- DUMP ALL FUNCTIONS ----------------
 
-rvas = []
-it = fm.getFunctions(True)  # forward
+def collect_function_rvas():
+    """Return a sorted, unique list of RVAs for non-blacklisted functions."""
+    rvas = []
+    it = fm.getFunctions(True)  # forward iterator
 
-while it.hasNext():
-    fn = it.next()
-    if is_blacklisted(fn):
-        continue
-    rva = fn.getEntryPoint().subtract(base)
-    rvas.append(int(rva))
+    while it.hasNext():
+        fn = it.next()
+        if is_blacklisted(fn):
+            continue
+        rva = fn.getEntryPoint().subtract(base)
+        rvas.append(int(rva))
 
-# Optional: deterministic, unique
-rvas = sorted(set(rvas))
+    # Deterministic, unique output for repeatable results.
+    return sorted(set(rvas))
 
 # ---------------- WRITE JSON ----------------
+def load_existing_output(path):
+    """Load existing JSON output or return an empty mapping."""
+    if Path(path).exists():
+        with open(path, "r") as f:
+            return json.load(f)
+    return {}
+
+
+def write_output(path, module_name, rvas):
+    """Merge the module's RVAs into the JSON output file."""
+    prev_rvas = load_existing_output(path)
+    prev_rvas[module_name] = rvas
+    with open(path, "w") as f:
+        f.write(json.dumps(prev_rvas))
+
+
+rvas = collect_function_rvas()
 out = askFile("Save all function RVAs (JSON numbers)", "Save")
 absPath = out.getAbsolutePath()
-if Path(absPath).exists():
-    with open(absPath, "r") as f:
-        prev_rvas = json.load(f)
-else:
-    prev_rvas = {}
-
 mod = currentProgram.getName()
-prev_rvas[mod] = rvas
-with open(out.getAbsolutePath(), "w") as f:
-    f.write(json.dumps(prev_rvas))
+write_output(absPath, mod, rvas)
 
 print("Exported functions:", len(rvas))
 print("Saved to:", out.getAbsolutePath())
