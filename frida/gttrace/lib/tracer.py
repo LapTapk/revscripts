@@ -7,7 +7,7 @@ using helper components that manage module lookups and symbol resolution.
 import os
 from lib.mod_lookup import ModLookup
 from lib.dbgsym import DebugSymbol
-from lib.traces import Traces
+from lib.outman import OutputManager
 from lib.common import ModRVA
 from dataclasses import dataclass
 from lib.messages import *
@@ -54,7 +54,7 @@ class Tracer:
 
         self.mods = ModLookup()
         self.dbg = DebugSymbol()
-        self.traces = Traces(conf.wl, self.mods, self.dbg, conf.out)
+        self.traces = OutputManager(conf.wl, self.mods, self.dbg, conf.out)
         self.env = conf.env
 
         self.pid = None

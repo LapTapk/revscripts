@@ -58,9 +58,8 @@ def parse_args() -> argparse.Namespace:
            help="Env file for target",
     )
     p.add_argument(
-        "--out",
-        default="trace",
-        help="Output trace file template. Output files will be named as </path/to/out>-<tid>. Default: %(default)s",
+        "out",
+        help="Output trace dir",
     )
     p.add_argument(
         "--device",
