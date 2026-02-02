@@ -33,17 +33,20 @@ class TracerConf:
     """
     device: Any
     wl: Optional[dict[str, list[int]]]
-    out: str
     env: Optional[dict[str, str]]
     attach: bool
     target: str
     args: list[str]
+    dbg: DebugSymbol
+    mods: ModLookup
+    outman: OutputManager
     entry: Optional[ModRVA]
 
 class Tracer:
     """Run Frida Stalker with lifecycle management and trace handling."""
     def __init__(self, conf: TracerConf):
         self.conf = conf
+        # TODO
         with open(JS_TEMPLATE_PATH, 'r') as f:
             script_src = f.read()
 
@@ -51,10 +54,6 @@ class Tracer:
             self.script_src = script_src % {"entry_mod": conf.entry.mod, "entry_rva": conf.entry.rva }
         else:
             self.script_src = script_src % {"entry_mod": 'undefined', "entry_rva": 'undefined' }
-
-        self.mods = ModLookup()
-        self.dbg = DebugSymbol()
-        self.traces = OutputManager(conf.wl, self.mods, self.dbg, conf.out)
 
         self.pid = None
         self.session = None
