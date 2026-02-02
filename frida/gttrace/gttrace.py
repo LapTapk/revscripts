@@ -141,12 +141,12 @@ def main():
     conf = TracerConf(device, wl, envs, args.pid, args.target, args.passthrough, dbg, mods, outman, entry)
     tracer = Tracer(conf)
 
-    #TODO
-    tracer.start()
-
     try:
+        tracer.start()
         while True:
             time.sleep(50)
+    except Exception as e:
+        print('[!!! ERROR]\n', e)
     finally:
         with yaspin(text="Detaching", color="cyan"):
             t = threading.Thread(target=tracer.stop)
