@@ -1,6 +1,5 @@
 """Trace formatting and file management for control-flow edges."""
 
-from dataclasses import dataclass
 from lib.messages import CfItem
 from lib.mod_lookup import ModLookup
 from lib.dbgsym import DebugSymbol
@@ -56,7 +55,7 @@ class Traces:
 
             tid = cf.tid
             if tid not in self.opened:
-                self.opened[tid] = open(f"{self.out}-{tid}", 'w', buffering=1, encoding="utf-8", errors="replace")
+                self.opened[tid] = open(f"{self.out}/trace-{tid}", 'w', buffering=1, encoding="utf-8", errors="replace")
 
             res = f'{frm_pretty} ---> {target_pretty}\n'
             self.opened[tid].write(res)
