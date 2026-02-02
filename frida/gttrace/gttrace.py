@@ -92,8 +92,8 @@ def parse_args() -> argparse.Namespace:
         help="Entrypoint which defines when to collect trace. Must be in format <MOD>!0x<HEX_RVA>. Coverage stops at ret."
     )
     p.add_argument(
-        dest="passthrough",
-        nargs=argparse.REMAINDER,
+        "argv",
+        nargs="*",
         help="Arguments passed to target. Example: script.py ./bin 0x401080 -- arg1 arg2",
     )
 
@@ -139,7 +139,7 @@ def main():
     dbg = DebugSymbol()
     outman = OutputManager(wl, mods, dbg, args.out)
 
-    conf = TracerConf(device, wl, envs, args.pid, args.target, args.passthrough, dbg, mods, outman, entry)
+    conf = TracerConf(device, wl, envs, args.pid, args.target, args.argv, dbg, mods, outman, entry)
     tracer = Tracer(conf)
 
     def cleanup():
