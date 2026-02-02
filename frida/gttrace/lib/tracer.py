@@ -84,7 +84,7 @@ class Tracer:
                 if not cfs:
                     return
                 
-                self.traces.write(cfs.items)
+                self.conf.outman.write(cfs.items)
             elif mtype == "mod":
                 if not self.conf.wl:
                     return
@@ -94,11 +94,11 @@ class Tracer:
                     return
 
                 if mes.remove:
-                    self.mods.rem(mes.start, mes.end)
-                    self.dbg.rem_mod(mes.name)
+                    self.conf.mods.rem(mes.start, mes.end)
+                    self.conf.dbg.rem_mod(mes.name)
                 else:
-                    self.mods.add(mes.start, mes.end, mes.name)
-                    self.dbg.add_mod(mes.name, mes.path)
+                    self.conf.mods.add(mes.start, mes.end, mes.name)
+                    self.conf.dbg.add_mod(mes.name, mes.path)
             elif mtype == "status":
                 print(f"[+] {payload.get('msg')}", flush=True)
             elif mtype == "done":
@@ -150,4 +150,4 @@ class Tracer:
         else:
             self.conf.device.kill(self.pid)
 
-        self.traces.close()
+        self.conf.outman.close()
