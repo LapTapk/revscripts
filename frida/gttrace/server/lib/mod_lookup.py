@@ -1,7 +1,13 @@
 """Module range indexing for address-to-module resolution."""
 
 from bisect import bisect_left, bisect_right
-from lib.common import ModRVA
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class ModRVA:
+    """Identify an address by module name and relative virtual address (RVA)."""
+    mod: str
+    rva: int
 
 class ModLookup:
     """Interval map for mapping absolute addresses to module RVAs.

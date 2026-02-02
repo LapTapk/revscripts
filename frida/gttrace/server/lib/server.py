@@ -4,25 +4,19 @@ This module loads the Frida agent, streams messages, and writes trace output
 using helper components that manage module lookups and symbol resolution.
 """
 
-import os
 import socket
-import json
+import os
 import sys
+import json
 from lib.mod_lookup import ModLookup
 from lib.dbgsym import DebugSymbol
 from lib.outman import OutputManager
-from lib.common import ModRVA
-from dataclasses import dataclass
 from lib.messages import *
 from typing import Any, Optional
-from pathlib import Path
-
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
-JS_TEMPLATE_PATH = f'{SCRIPT_DIR}/js/agent.js'
 
 class Server:
     """Run Frida Stalker with lifecycle management and trace handling."""
-    def __init__(self, wl: Optional[dict[str, list[int]]], address: str, out: str, bufsize: int = 1000):
+    def __init__(self, wl: Optional[dict[str, list[int]]], address: str, out: str, bufsize: int = 1000000):
         self.wl = wl
         self.address = address
         self.out = out
