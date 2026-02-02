@@ -13,6 +13,10 @@ import threading
 import time
 from yaspin import yaspin
 from pathlib import Path
+from lib.mod_lookup import ModLookup
+from lib.dbgsym import DebugSymbol
+from lib.outman import OutputManager
+from lib.common import ModRVA
 from lib.tracer import Tracer, TracerConf
 from lib.common import ModRVA
 
@@ -129,10 +133,15 @@ def main():
         entry = parse_entry(args.entry)
     else:
         entry = None
+    
+    mods = ModLookup()
+    dbg = DebugSymbol()
+    outman = OutputManager(wl, mods, dbg, args.out)
 
-    conf = TracerConf(device, wl, args.out, envs, args.pid, args.target, args.passthrough, entry)
+    conf = TracerConf(device, wl, envs, args.pid, args.target, args.passthrough, dbg, mods, outman, entry)
     tracer = Tracer(conf)
 
+    #TODO
     tracer.start()
 
     try:
