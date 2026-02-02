@@ -11,7 +11,7 @@ from lib.outman import OutputManager
 from lib.common import ModRVA
 from dataclasses import dataclass
 from lib.messages import *
-from typing import Any
+from typing import Any, Optional
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
@@ -32,13 +32,13 @@ class TracerConf:
         entry: Optional module+RVA entrypoint for coverage start/stop.
     """
     device: Any
-    wl: dict[str, list[int]]
+    wl: Optional[dict[str, list[int]]]
     out: str
-    env: dict[str, str]
+    env: Optional[dict[str, str]]
     attach: bool
     target: str
     args: list[str]
-    entry: ModRVA | None
+    entry: Optional[ModRVA]
 
 class Tracer:
     """Run Frida Stalker with lifecycle management and trace handling."""
