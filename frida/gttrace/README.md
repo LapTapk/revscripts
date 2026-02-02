@@ -87,7 +87,7 @@ Each traced thread writes to its own file named `<out>-<tid>`, with one edge per
 line:
 
 ```
-<module>!<symbol_or_rva> ---> <module>!<symbol_or_rva>
+<module>!<symbol_and/or_rva> ---> <module>!<symbol_and/or_rva>
 ```
 
 ## Notes

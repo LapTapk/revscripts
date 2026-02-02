@@ -42,7 +42,7 @@ class OutputManager:
         if res:
             (_, _, func, _) = res
             if func:
-                return f'{mod_addr.mod}!{func.name}'
+                return f'{mod_addr.mod}!{func.name}!{mod_addr.rva}'
 
         return f'{mod_addr.mod}!{hex(mod_addr.rva)}'
 
