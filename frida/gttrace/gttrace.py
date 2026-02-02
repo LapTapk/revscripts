@@ -141,6 +141,8 @@ def main():
     conf = TracerConf(device, wl, envs, args.pid, args.target, args.passthrough, dbg, mods, outman, entry)
     tracer = Tracer(conf)
 
+    #TODO: SIGINT handling
+
     try:
         tracer.start()
         while True:
