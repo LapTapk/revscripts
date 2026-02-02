@@ -46,8 +46,12 @@ class Tracer:
     """Run Frida Stalker with lifecycle management and trace handling."""
     def __init__(self, conf: TracerConf):
         self.conf = conf
-        # TODO
-        with open(JS_TEMPLATE_PATH, 'r') as f:
+        
+        script_path = Path(JS_TEMPLATE_PATH)
+        if not script_path.exists():
+            raise RuntimeError("[!!!] agent script is not in the right place")
+
+        with script_path.open() as f:
             script_src = f.read()
 
         if conf.entry:
