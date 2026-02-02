@@ -1,6 +1,7 @@
 """Trace formatting and file management for control-flow edges."""
 
 from pathlib import Path
+from typing import Optional
 from lib.messages import CfItem
 from lib.mod_lookup import ModLookup
 from lib.dbgsym import DebugSymbol
@@ -10,7 +11,7 @@ class OutputManager:
 
     Each thread id (TID) receives its own trace file, created on demand.
     """
-    def __init__(self, wl: dict[str, list[int]], mods: ModLookup, dbg: DebugSymbol, out: str):
+    def __init__(self, wl: Optional[dict[str, list[int]]], mods: ModLookup, dbg: DebugSymbol, out: str):
         self.opened = {}
         self.wl = wl
         self.mods = mods
