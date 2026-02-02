@@ -11,6 +11,7 @@ import argparse
 import json
 import threading
 import time
+import signal
 from yaspin import yaspin
 from pathlib import Path
 from lib.mod_lookup import ModLookup
@@ -141,20 +142,27 @@ def main():
     conf = TracerConf(device, wl, envs, args.pid, args.target, args.passthrough, dbg, mods, outman, entry)
     tracer = Tracer(conf)
 
-    #TODO: SIGINT handling
+    def cleanup():
+        with yaspin(text="[~] detaching", color="red"):
+            t = threading.Thread(target=tracer.stop)
+            t.start()
+            t.join()
+
+    def sigint_handler(_sig, _frame):
+        cleanup()
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGINT, sigint_handler)
 
     try:
         tracer.start()
         while True:
             time.sleep(50)
+    except KeyboardInterrupt:
+            return 0
     except Exception as e:
         print('[!!! ERROR]\n', e)
-    finally:
-        with yaspin(text="Detaching", color="cyan"):
-            t = threading.Thread(target=tracer.stop)
-            t.start()
-            t.join()
-
+        cleanup()
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
