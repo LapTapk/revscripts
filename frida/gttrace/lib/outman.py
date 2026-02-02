@@ -1,10 +1,11 @@
 """Trace formatting and file management for control-flow edges."""
 
+from pathlib import Path
 from lib.messages import CfItem
 from lib.mod_lookup import ModLookup
 from lib.dbgsym import DebugSymbol
 
-class Traces:
+class OutputManager:
     """Manage trace output files and format call edges.
 
     Each thread id (TID) receives its own trace file, created on demand.
@@ -13,8 +14,12 @@ class Traces:
         self.opened = {}
         self.wl = wl
         self.mods = mods
-        self.out = out
         self.dbg = dbg
+
+        out_path = Path(out);
+        out_path.mkdir(exist_ok=True, parents=True);
+            
+        self.out = out
 
     def _is_whitelisted(self, mod_addr):
         """Check whether a module RVA is in the whitelist."""
