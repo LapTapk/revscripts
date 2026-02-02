@@ -12,6 +12,7 @@ import json
 import threading
 import time
 from yaspin import yaspin
+from pathlib import Path
 from lib.tracer import Tracer, TracerConf
 from lib.common import ModRVA
 
@@ -98,14 +99,25 @@ def parse_args() -> argparse.Namespace:
 def main():
     """Configure tracing, run until interrupted, then detach cleanly."""
     args = parse_args()
+
     if args.wl:
-        with open(args.wl, 'r') as f:
+        wl_path = Path(args.wl)
+        if not wl_path.exists():
+            print(f"[!] Whitelist file does not exist: {wl_path}")
+            return 1
+
+        with wl_path.open() as f:
             wl = json.load(f)
     else:
         wl = None
 
     if args.env:
-        with open(args.env, 'r') as f:
+        env_path = Path(args.env)
+        if not env_path.exists():
+            print(f"[!] env file does not exist: {env_path}")
+            return 1
+
+        with env_path.open() as f:
             envs_file = f.read()
 
         envs = dict(map(lambda x: x.split('=', 1), filter(str.strip, filter(None, envs_file.split('\n')))))
