@@ -53,6 +53,21 @@ expected JSON format maps module names to a list of RVAs. You can generate this
 file in Ghidra with `ghidra/DumpFuncRVAs.py`, which exports filtered function
 RVAs that are directly compatible with `gttrace`.
 
+Whitelist format:
+```
+{
+    "mod-name": [
+        <rva1>,
+        <rva2>,
+        ....
+    ],
+    "mod-name-1": [
+        ...
+    ],
+    ...
+}
+```
+
 ```bash
 python3 gttrace.py /path/to/target --wl /path/to/functions.json
 ```
