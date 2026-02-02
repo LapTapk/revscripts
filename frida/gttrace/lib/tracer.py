@@ -55,7 +55,6 @@ class Tracer:
         self.mods = ModLookup()
         self.dbg = DebugSymbol()
         self.traces = OutputManager(conf.wl, self.mods, self.dbg, conf.out)
-        self.env = conf.env
 
         self.pid = None
         self.session = None
@@ -66,7 +65,9 @@ class Tracer:
 
         These variables affect the target process when it is spawned.
         """
-        for (k, v) in self.env.items():
+        assert self.conf.env is not None, "[!!! dev exception] tracers envs are None"
+
+        for (k, v) in self.conf.env.items():
             os.environ[k] = v
 
     def _on_message(self, message):
@@ -110,7 +111,7 @@ class Tracer:
 
     def start(self):
         """Attach or spawn the target and start the tracing script."""
-        if self.env:
+        if self.conf.env:
             self._set_env()
 
         if self.conf.attach:
