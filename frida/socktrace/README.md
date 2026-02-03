@@ -18,7 +18,7 @@ From the repo root:
 
 ```bash
 cd frida/socktrace/server
-cargo build --release
+make
 ```
 
 ### 2) Run the server
@@ -33,17 +33,10 @@ The server will create the socket (unlinking it first if it exists) and write
 output into `/tmp/socktrace-out`.
 
 ### 3) Load the agent
+Load the agent with Frida Gadget in script or script-directory mode. 
+In Gadget config provide following paramaters to script:
 
-In your Frida environment, load `frida/socktrace/agent.js` and call
-`rpc.exports.init` with parameters that match your server socket.
-
-Minimal example (JavaScript in your Frida host script):
-
-```js
-await rpc.exports.init(null, {
-  out_socket_path: "/tmp/socktrace.sock",
-});
-```
+- `out_socket_path` (string): socket for traces transfer
 
 Optional parameters:
 
