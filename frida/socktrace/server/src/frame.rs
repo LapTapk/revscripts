@@ -1,28 +1,53 @@
+//! GTTR frame parser shared between the Frida agent and this server.
+//!
+//! Frames are small binary datagrams with a fixed header and variable-length
+//! path/conn/payload sections. See the comments in `agent.js` for the emitter
+//! logic and framing layout.
+
 use anyhow::{bail, Result};
 
+/// Magic constant for GTTR frames ('GTTR' in little-endian).
 pub const MAGIC_GTTR: u32 = 0x5254_5447; // 'GTTR' as little-endian u32
+/// Supported wire format version.
 pub const VER: u8 = 1;
 
-// Types (match agent)
+/// Frame type: connection open.
 pub const T_OPEN: u8 = 1;
+/// Frame type: connection close.
 pub const T_CLOSE: u8 = 2;
+/// Frame type: listener announcement.
 pub const T_LISTEN: u8 = 3;
+/// Frame type: payload data.
 pub const T_DATA: u8 = 4;
+/// Frame type: agent ready.
 pub const T_READY: u8 = 5;
+/// Frame type: agent init banner.
 pub const T_INIT: u8 = 6;
+/// Frame type: agent error.
 pub const T_ERROR: u8 = 7;
 
+/// Parsed view into a single GTTR frame.
 #[derive(Debug)]
 pub struct Frame<'a> {
+    /// Frame version (must be `VER`).
     pub ver: u8,
+    /// Frame type.
     pub typ: u8,
+    /// Flags bitfield (bit0 = payload present).
     pub flags: u16,
+    /// Timestamp low 32 bits (milliseconds).
     pub ts_ms_lo: u32,
+    /// Timestamp high 32 bits (milliseconds).
     pub ts_ms_hi: u32,
+    /// File descriptor associated with the event.
     pub fd: i32,
+    /// Direction (0 none, 1 in, 2 out).
     pub dir: u8, // 0 none, 1 in, 2 out
+    /// Path bytes (ASCII-ish, as sent by the agent).
     pub path: &'a [u8],
+    /// Connection identifier bytes.
     pub conn: &'a [u8],
+    /// Payload bytes.
     pub payload: &'a [u8],
 }
 
@@ -51,6 +76,7 @@ fn read_i32_le(b: &[u8], off: &mut usize) -> Result<i32> {
     Ok(read_u32_le(b, off)? as i32)
 }
 
+/// Parses a GTTR datagram into a [`Frame`].
 pub fn parse_frame(buf: &[u8]) -> Result<Frame<'_>> {
     let mut off = 0;
 
@@ -97,6 +123,7 @@ pub fn parse_frame(buf: &[u8]) -> Result<Frame<'_>> {
     Ok(Frame { ver, typ, flags, ts_ms_lo, ts_ms_hi, fd, dir, path, conn, payload })
 }
 
+/// Returns a human-readable type name for a GTTR frame type.
 pub fn frame_type_name(t: u8) -> &'static str {
     match t {
         T_OPEN => "open",
@@ -110,6 +137,7 @@ pub fn frame_type_name(t: u8) -> &'static str {
     }
 }
 
+/// Returns a human-readable direction name.
 pub fn dir_name(d: u8) -> Option<&'static str> {
     match d {
         1 => Some("in"),

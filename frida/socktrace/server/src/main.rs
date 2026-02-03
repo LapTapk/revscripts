@@ -1,3 +1,16 @@
+//! Collects GTTR frames over an AF_UNIX datagram socket and writes structured
+//! JSONL events plus per-connection payload streams.
+//!
+//! This binary pairs with `frida/socktrace/agent.js`:
+//! - The agent emits GTTR frames via a UNIX datagram socket.
+//! - The server decodes frames, normalizes metadata, and persists output in
+//!   `events.jsonl` plus `<conn_id>.(in|out).bin` payload files.
+//! - `conn_id` values are shared with the agent, so sanitization matches
+//!   `safe_filename()` in `util.rs`.
+//!
+//! The output format is intended to be easy to consume with tooling like
+//! `jq`, text editors, or custom scripts.
+
 mod event;
 mod frame;
 mod output;
