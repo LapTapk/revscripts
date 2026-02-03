@@ -1,17 +1,27 @@
 'use strict';
 
-/*
-  Server-side UNIX socket tracer streaming events+payload to a user-specified
-  UNIX socket. Output uses native socket(), connect(), sendto().
+/**
+ * Frida agent for tracing AF_UNIX socket activity from the target process.
+ *
+ * The agent hooks libc syscalls (`send`, `recv`, `read`, `write`, etc.) and
+ * emits compact GTTR binary frames over a UNIX datagram socket. The companion
+ * server (`frida/socktrace/server`) decodes these frames into JSONL events
+ * and per-connection payload files for offline analysis.
+ *
+ * Constraints satisfied:
+ * - `rpc.exports.init(_, params)` initializes the whole system.
+ * - All output goes to `params.out_socket_path` (AF_UNIX datagram or stream).
+ * - Export resolution scans module instances only (no `Module.findExportByName(null, ...)`).
+ * - The agent does NOT trace traffic produced by itself (suppression guard + exclude outFd).
+ * - Uses `ptr.write*()` APIs only (no `Memory.write*`).
+ */
 
-  Constraints satisfied:
-  - rpc.exports.init(_, params) initializes the whole system
-  - all output goes to params.out_socket_path (AF_UNIX)
-  - export resolution scans module instances only (no Module.findExportByName(null,...))
-  - does NOT trace traffic produced by the agent itself (suppression guard + exclude outFd)
-  - uses ptr.write*() APIs only (no Memory.write*)
-*/
-
+/**
+ * Runtime state shared across hooks.
+ *
+ * This object keeps track of configuration, tracked sockets, and the output
+ * socket used to emit GTTR frames.
+ */
 let STATE = {
   inited: false,
 
@@ -40,22 +50,30 @@ let STATE = {
 
 /* ---------------- helpers ---------------- */
 
+/** Returns current host time in milliseconds (used for frame timestamps). */
 function nowMs() { return (new Date()).getTime(); }
 
+/** Sanitizes connection IDs to a filename-safe ASCII-ish format. */
 function sanitizeConnId(s) {
   return s.replace(/[^a-zA-Z0-9_.:@=\-+]/g, '_');
 }
 
+/** Returns current thread ID or -1 if unavailable. */
 function tid() {
   try { return Process.getCurrentThreadId(); } catch (_) { return -1; }
 }
 
+/**
+ * Executes a function while suppressing hook callbacks on the current thread.
+ * This prevents recursive tracing when we emit frames ourselves.
+ */
 function withSuppressed(fn) {
   const t = tid();
   STATE.suppressTid.add(t);
   try { return fn(); } finally { STATE.suppressTid.delete(t); }
 }
 
+/** Returns true if the current thread is suppressed. */
 function isSuppressed() {
   const t = tid();
   return STATE.suppressTid.has(t);
@@ -65,6 +83,10 @@ function isSuppressed() {
 
 const exportCache = new Map();
 
+/**
+ * Resolves a symbol by scanning all module instances (optionally with a
+ * preferred module name).
+ */
 function findExportAny(sym, preferredModuleName /* optional */) {
   const key = preferredModuleName ? (preferredModuleName + '!' + sym) : sym;
   if (exportCache.has(key)) return exportCache.get(key);
@@ -116,6 +138,11 @@ const SOCK_DGRAM = 2;
 
 /* ---------------- sockaddr_un helpers (ptr.write* only) ---------------- */
 
+/**
+ * Builds a `sockaddr_un` for a given AF_UNIX path.
+ *
+ * Supports filesystem paths and abstract namespace paths (`@name`).
+ */
 function sockaddrUnFromPath(path) {
   // sockaddr_un (Linux):
   //   u16 sun_family
@@ -152,6 +179,11 @@ function sockaddrUnFromPath(path) {
   }
 }
 
+/**
+ * Decodes a `sockaddr_un` pointer into a string path.
+ *
+ * Returns a string (filesystem or `@abstract`) or `null` if invalid.
+ */
 function readSockaddrUnPath(addrPtr, addrLen) {
   if (addrPtr.isNull() || addrLen < 2) return null;
   try {
@@ -202,6 +234,9 @@ function readSockaddrUnPath(addrPtr, addrLen) {
   }
 }
 
+/**
+ * Reads the local UNIX socket path for a file descriptor using getsockname().
+ */
 function getUnixPathBySockname(fd) {
   if (!nf_getsockname) return null;
 
@@ -246,6 +281,16 @@ function writeU64As2U32(p, ms) {
   p.add(4).writeU32(hi);
 }
 
+/**
+ * Serializes and emits a single GTTR frame.
+ *
+ * @param {number} type Frame type enum.
+ * @param {number} fd File descriptor.
+ * @param {number} dir Direction enum (0 none, 1 in, 2 out).
+ * @param {string} pathStr UNIX socket path (optional).
+ * @param {string} connIdStr Connection id (optional).
+ * @param {?ArrayBuffer} payload Payload bytes.
+ */
 function sendFrame(type, fd, dir, pathStr, connIdStr, payload /* ArrayBuffer|null */) {
   if (STATE.outFd < 0 || !nf_sendto) return;
 
@@ -312,24 +357,31 @@ function sendFrame(type, fd, dir, pathStr, connIdStr, payload /* ArrayBuffer|nul
 
 /* ---------------- emit API (no send()) ---------------- */
 
+/** Emits an error frame with a textual message. */
 function emitError(msg) {
   sendFrame(7, -1, 0, '', msg || '', null);
 }
+/** Emits an init frame describing agent configuration. */
 function emitInit(meta) {
   sendFrame(6, -1, 0, '', meta || '', null);
 }
+/** Emits a ready frame after initial enumeration. */
 function emitReady(trackedCount, listenCount) {
   sendFrame(5, -1, 0, '', `tracked=${trackedCount};listen=${listenCount}`, null);
 }
+/** Emits a listen frame for a UNIX socket listener. */
 function emitListen(fd, path, how) {
   sendFrame(3, fd, 0, path, how || '', null);
 }
+/** Emits an open frame for a newly-tracked connection. */
 function emitOpen(fd, path, connId, how) {
   sendFrame(1, fd, 0, path, `${connId}|${how || ''}`, null);
 }
+/** Emits a close frame for a tracked connection. */
 function emitClose(fd, connId, how) {
   sendFrame(2, fd, 0, '', `${connId}|${how || ''}`, null);
 }
+/** Emits a data frame for inbound/outbound payload bytes. */
 function emitData(fd, direction, path, connId, bytes) {
   const dir = (direction === 'in') ? 1 : 2;
   sendFrame(4, fd, dir, path, connId, bytes);
@@ -337,6 +389,7 @@ function emitData(fd, direction, path, connId, bytes) {
 
 /* ---------------- tracking ---------------- */
 
+/** Tracks a connection file descriptor and emits an open event. */
 function trackFd(fd, path, how) {
   if (STATE.whitelist.size && !STATE.whitelist.has(path)) return;
   if (fd === STATE.outFd) return; // never track our own output socket
@@ -345,6 +398,7 @@ function trackFd(fd, path, how) {
   emitOpen(fd, path, connId, how);
 }
 
+/** Stops tracking a file descriptor and emits a close event. */
 function untrackFd(fd, how) {
   const rec = STATE.tracked.get(fd);
   if (rec) {
@@ -356,6 +410,12 @@ function untrackFd(fd, how) {
 
 /* ---------------- preexisting mapping (server-focused) ---------------- */
 
+/**
+ * Enumerates already-open sockets to seed the tracking map.
+ *
+ * This is primarily for server processes where sockets may be created before
+ * the agent attaches.
+ */
 function enumerateAlreadyOpenFdsServer() {
   if (!nf_fcntl || !nf_getsockname) return;
 
@@ -377,12 +437,16 @@ function enumerateAlreadyOpenFdsServer() {
 
 /* ---------------- hooks ---------------- */
 
+/** Attaches a Frida interceptor hook and stores it for later management. */
 function attachHook(addr, spec) {
   if (!addr) return;
   const h = Interceptor.attach(addr, spec);
   STATE.hooks.push(h);
 }
 
+/**
+ * Hooks bind/listen/accept to discover server-side sockets and connections.
+ */
 function hookBindListenAccept() {
   if (p_bind) {
     attachHook(p_bind, {
@@ -469,6 +533,9 @@ function hookBindListenAccept() {
   }
 }
 
+/**
+ * Hooks close/dup/dup2/dup3 to maintain tracking state across FD lifecycle.
+ */
 function hookCloseAndDup() {
   if (p_close) {
     attachHook(p_close, {
@@ -555,6 +622,11 @@ function hookCloseAndDup() {
   }
 }
 
+/**
+ * Hooks send/recv/read/write to capture payload data.
+ *
+ * Payload size is capped by `STATE.maxBytes` to avoid excessive memory usage.
+ */
 function hookIo() {
   // Important: do not trace our own outFd, and suppress while emitting to avoid recursion.
 
@@ -651,6 +723,9 @@ function hookIo() {
 
 /* ---------------- init plumbing ---------------- */
 
+/**
+ * Resolves all libc symbols required for tracing and output.
+ */
 function resolveAllSymbols() {
   const libcName = STATE.libcName;
 
@@ -692,6 +767,9 @@ function resolveAllSymbols() {
   return true;
 }
 
+/**
+ * Opens the output AF_UNIX socket used to emit GTTR frames.
+ */
 function openOutSocket(outPath, sockType) {
   if (!nf_socket || !nf_connect) return -1;
   const fd = nf_socket(AF_UNIX, sockType, 0);
@@ -709,6 +787,18 @@ function openOutSocket(outPath, sockType) {
 /* ---------------- RPC entrypoint ---------------- */
 
 rpc.exports = {
+  /**
+   * Initializes the tracing agent.
+   *
+   * @param {*} _ Unused (legacy Frida signature).
+   * @param {Object} params Configuration parameters:
+   *   - max_fds: optional (int) maximum fd to scan for preexisting sockets.
+   *   - max_bytes: optional (int) maximum payload bytes per event.
+   *   - socket_paths: optional array of UNIX socket paths to trace (whitelist).
+   *   - out_socket_path: required output socket path for GTTR datagrams.
+   *   - out_sock_type: optional "dgram" | "stream" (default "dgram").
+   * @returns {boolean} true when initialized.
+   */
   init(_ /* ignored */, params) {
     if (STATE.inited) return true;
 
