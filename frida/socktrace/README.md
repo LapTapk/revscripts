@@ -10,6 +10,10 @@
 This README focuses on how to run the tracer and how to interpret the output so
 contributors can extend or troubleshoot the pipeline.
 
+## Limitations
+
+This utility was tested only on Linux x86_64
+
 ## Quick start
 
 ### 1) Build the server
