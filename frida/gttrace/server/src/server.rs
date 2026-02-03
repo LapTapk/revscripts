@@ -1,3 +1,5 @@
+//! UNIX datagram server that receives gttrace messages and writes output.
+
 use crate::messages::{Envelope, parse_cf_items, parse_mod_message};
 use crate::outman::OutputManager;
 use anyhow::{Context, Result};
@@ -7,6 +9,7 @@ use std::collections::HashMap;
 use std::os::unix::net::UnixDatagram;
 use std::path::{PathBuf};
 
+/// Server state and configuration for the gttrace receiver.
 pub struct Server {
     wl: Option<HashMap<String, Vec<u64>>>,
     address: PathBuf,
@@ -16,6 +19,7 @@ pub struct Server {
 }
 
 impl Server {
+    /// Construct a new server with optional whitelist and output paths.
     pub fn new(
         wl: Option<HashMap<String, Vec<u64>>>,
         address: PathBuf,
@@ -24,6 +28,7 @@ impl Server {
         Self { wl, address, out, outmans: HashMap::new(), bufsize: 100_000_000 }
     }
 
+    /// Fetch or create the output manager for a specific process id.
     fn get_outman(&mut self, pid: u32) -> Result<&mut OutputManager> {
         if !self.outmans.contains_key(&pid) {
             let om = OutputManager::new(self.wl.clone(), &self.out)?;
@@ -32,6 +37,7 @@ impl Server {
         Ok(self.outmans.get_mut(&pid).unwrap())
     }
 
+    /// Handle a single decoded message envelope.
     fn on_message(&mut self, env: Envelope) -> Result<()> {
         if env.ty != "send" {
             eprintln!("{env:?}");
@@ -74,6 +80,7 @@ impl Server {
         Ok(())
     }
 
+    /// Start listening for messages and processing them indefinitely.
     pub fn serve(mut self) -> Result<()> {
         // unlink old socket path
         let _ = std::fs::remove_file(&self.address);

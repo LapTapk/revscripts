@@ -1,3 +1,8 @@
+//! Entry point for the gttrace server process.
+//!
+//! The server listens on a UNIX datagram socket, decodes incoming JSON
+//! messages from the Frida script, and writes resolved call edges to disk.
+
 mod server;
 mod messages;
 mod mod_lookup;
@@ -7,6 +12,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::PathBuf;
 
+/// Command-line arguments for configuring the gttrace server.
 #[derive(Parser, Debug)]
 #[command(about = "Frida Stalker indirect calls tracer server (Rust port)")]
 struct Args {
@@ -19,6 +25,7 @@ struct Args {
     wl: Option<PathBuf>,
 }
 
+/// Initialize the server and start processing incoming trace messages.
 fn main() -> Result<()> {
     let args = Args::parse();
 
