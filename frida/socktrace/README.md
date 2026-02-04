@@ -12,7 +12,8 @@ contributors can extend or troubleshoot the pipeline.
 
 ## Limitations
 
-This utility was tested only on Linux x86_64
+- This utility was tested only on Linux x86_64
+- Does not work on binaries which fork for now
 
 ## Quick start
 
