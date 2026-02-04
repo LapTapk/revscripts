@@ -1,2 +1,4 @@
 pyrightconfig.json
-__pycache__
+__pycache__/
+Cargo.lock
+target/
